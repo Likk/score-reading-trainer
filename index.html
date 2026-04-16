@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Score Reading Trainer</title>
+    <link rel="stylesheet" href="src/ui/style.css">
+</head>
+<body>
+    <div id="startOverlay" class="start-overlay">
+        <div class="start-message">クリックまたはキー入力で開始</div>
+    </div>
+    <input type="checkbox" id="settingsToggle" class="settings-toggle-input">
+    <label for="settingsToggle" class="settings-toggle-btn" aria-label="設定"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2.5" fill="var(--color-surface, #fff)"/><circle cx="16" cy="12" r="2.5" fill="var(--color-surface, #fff)"/><circle cx="11" cy="18" r="2.5" fill="var(--color-surface, #fff)"/></svg></label>
+    <label for="settingsToggle" class="settings-backdrop"></label>
+    <div class="container">
+        <div class="score-area">五線譜エリア</div>
+        <div class="settings-area">
+            <!-- 譜面 -->
+            <div class="setting-group no-divider">
+                <label>音部記号</label>
+                <div>
+                    <label><input type="radio" name="clef" value="treble" checked> ト音</label>
+                    <label><input type="radio" name="clef" value="bass"> ヘ音</label>
+                </div>
+            </div>
+            <div class="setting-group">
+                <label>調号</label>
+                <select id="keySig">
+                    <option value="C">ハ長調 (C)</option>
+                    <option value="G">ト長調 (G)</option>
+                    <option value="D">ニ長調 (D)</option>
+                    <option value="A">イ長調 (A)</option>
+                    <option value="E">ホ長調 (E)</option>
+                    <option value="B">ロ長調 (B)</option>
+                    <option value="F">ヘ長調 (F)</option>
+                    <option value="Bb">変ロ長調 (B♭)</option>
+                    <option value="Eb">変ホ長調 (E♭)</option>
+                    <option value="Ab">変イ長調 (A♭)</option>
+                </select>
+                <label><input type="checkbox" id="accidentals"> 臨時記号あり</label>
+            </div>
+            <div class="setting-group">
+                <label>音域</label>
+                <div>
+                    <select id="rangeLow">
+                        <option value="21">A0</option>
+                        <option value="24">C1</option>
+                        <option value="36">C2</option>
+                        <option value="48">C3</option>
+                        <option value="60" selected>C4</option>
+                        <option value="72">C5</option>
+                        <option value="84">C6</option>
+                    </select>
+                    〜
+                    <select id="rangeHigh">
+                        <option value="47">B2</option>
+                        <option value="59">B3</option>
+                        <option value="71">B4</option>
+                        <option value="83" selected>B5</option>
+                        <option value="95">B6</option>
+                        <option value="107">B7</option>
+                        <option value="108">C8</option>
+                    </select>
+                </div>
+            </div>
+            <!-- 音 -->
+            <div class="setting-group">
+                <label>音色</label>
+                <select id="oscillatorType">
+                    <option value="triangle">Triangle（柔らか）</option>
+                    <option value="sawtooth">Sawtooth（明るい）</option>
+                    <option value="square">Square（硬い）</option>
+                    <option value="sine">Sine（純音）</option>
+                </select>
+                <label>音量</label>
+                <input type="range" id="volume" min="-40" max="0" value="-10">
+            </div>
+            <!-- 表示 -->
+            <div class="setting-group">
+                <label><input type="checkbox" id="kbFit" checked> 鍵盤を画面幅に収める</label>
+            </div>
+            <details class="setting-group collapsible">
+                <summary>ヒント</summary>
+                <div class="collapsible-body">
+                    <label><input type="checkbox" id="hintStaff"> 押した音を譜面に表示</label>
+                    <label><input type="checkbox" id="hintKey"> 正解キーを表示</label>
+                    <label><input type="checkbox" id="hintNoteLabel" checked> 音名表示</label>
+                    <label><input type="checkbox" id="hintKbLayout"> キーボードレイアウト表示</label>
+                </div>
+            </details>
+        </div>
+    </div>
+    <div id="midiStatus">MIDI: 未接続</div>
+    <div class="keyboard-area">鍵盤エリア</div>
+    <script type="module" src="dist/bundle.js"></script>
+</body>
+</html>

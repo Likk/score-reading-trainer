@@ -1,0 +1,33 @@
+{
+  "name": "score-reading-trainer",
+  "version": "1.0.0",
+  "description": "An interactive web application to help train your sight-reading skills for piano by practicing with random sheet music and matching notes on a virtual piano keyboard.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm --minify --sourcemap",
+    "watch": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm --sourcemap --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LikkJp/score-reading-trainer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/LikkJp/score-reading-trainer/issues"
+  },
+  "homepage": "https://github.com/LikkJp/score-reading-trainer#readme",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.28.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "tone": "^15.1.22",
+    "vexflow": "^5.0.0"
+  }
+}
