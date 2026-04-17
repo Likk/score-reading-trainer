@@ -13,6 +13,7 @@ export interface SettingsCallbacks {
   onVolumeChange: (value: number) => void;
   onOscillatorChange: (type: OscillatorType) => void;
   onKbModeChange: (mode: "fit" | "scroll") => void;
+  onMidiOffsetChange: (offset: number) => void;
 }
 
 export function initSettings(callbacks: SettingsCallbacks): void {
@@ -104,6 +105,13 @@ export function initSettings(callbacks: SettingsCallbacks): void {
   if (kbFitCheckbox) {
     kbFitCheckbox.addEventListener("change", () => {
       callbacks.onKbModeChange(kbFitCheckbox.checked ? "fit" : "scroll");
+    });
+  }
+
+  const midiOffsetSelect = document.getElementById("midiOffset") as HTMLSelectElement;
+  if (midiOffsetSelect) {
+    midiOffsetSelect.addEventListener("change", () => {
+      callbacks.onMidiOffsetChange(parseInt(midiOffsetSelect.value, 10));
     });
   }
 }

@@ -91,7 +91,17 @@
             </details>
         </div>
     </div>
-    <div id="midiStatus">MIDI: 未接続</div>
+    <div class="midi-bar">
+        <span id="midiStatus">MIDI: 未接続</span>
+        <label class="midi-offset-label">オクターブ補正
+            <select id="midiOffset">
+                <option value="-12">-1</option>
+                <option value="0" selected>0</option>
+                <option value="12">+1</option>
+                <option value="24">+2</option>
+            </select>
+        </label>
+    </div>
     <div class="keyboard-area">鍵盤エリア</div>
     <script type="module" src="dist/bundle.js"></script>
 </body>

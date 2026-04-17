@@ -218,6 +218,25 @@ describe("midiToNoteName", () => {
     assert.equal(r.noteName, "C");
     assert.equal(r.octave, -1);
   });
+
+  it("offset +12 converts C3 (midi 48) to C4", () => {
+    const raw = 48;
+    const offset = 12;
+    const r = midiToNoteName(raw + offset);
+    assert.equal(r.noteName, "C");
+    assert.equal(r.octave, 4);
+    assert.equal(r.full, "C4");
+  });
+
+  it("offset +12 preserves note name across octave", () => {
+    const offset = 12;
+    for (let raw = 36; raw <= 71; raw++) {
+      const without = midiToNoteName(raw);
+      const with_ = midiToNoteName(raw + offset);
+      assert.equal(with_.noteName, without.noteName, `midi ${raw}: note name should be same`);
+      assert.equal(with_.octave, without.octave + 1, `midi ${raw}: octave should be +1`);
+    }
+  });
 });
 
 // --- Constants consistency ---

@@ -26,6 +26,12 @@ function updateMidiStatus(deviceNames: string[]): void {
   }
 }
 
+let midiOffset = 0;
+
+export function setMidiOffset(offset: number): void {
+  midiOffset = offset;
+}
+
 export function initMidi(callbacks: MidiCallbacks): void {
   if (!navigator.requestMIDIAccess) {
     updateMidiStatus([]);
@@ -35,7 +41,8 @@ export function initMidi(callbacks: MidiCallbacks): void {
   const handleMessage = (msg: WebMidi.MIDIMessageEvent) => {
     const data = msg.data;
     if (!data || data.length < 3) return;
-    const [status, noteNum, velocity] = data;
+    const [status, rawNote, velocity] = data;
+    const noteNum = rawNote + midiOffset;
     const name = midiToNoteName(noteNum);
     const isNoteOn = status >= 0x90 && status <= 0x9f && velocity > 0;
     const isNoteOff = (status >= 0x80 && status <= 0x8f) ||

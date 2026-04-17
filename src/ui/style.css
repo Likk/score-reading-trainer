@@ -261,12 +261,37 @@ input[type="radio"] {
   accent-color: var(--color-primary);
 }
 
-/* ===== MIDI Status ===== */
-#midiStatus {
+/* ===== MIDI Bar ===== */
+.midi-bar {
   width: var(--keyboard-width);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 11px;
   padding: var(--space-2) 0;
   color: var(--color-text-tertiary);
+}
+
+#midiStatus {
+  color: var(--color-text-tertiary);
+}
+
+.midi-offset-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.midi-offset-label select {
+  font-size: 11px;
+  font-family: var(--font);
+  padding: 1px var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 /* ===== Keyboard Area ===== */
@@ -448,7 +473,7 @@ input[type="radio"] {
     width: 100%;
   }
 
-  #midiStatus,
+  .midi-bar,
   .keyboard-area {
     width: 100%;
   }
@@ -492,7 +517,7 @@ input[type="radio"] {
     min-height: auto;
   }
 
-  #midiStatus {
+  .midi-bar {
     padding: 0;
     line-height: 1.2;
   }

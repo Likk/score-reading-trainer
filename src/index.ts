@@ -2,7 +2,7 @@ import { type NoteInfo, type Clef, type KeySig, KEY_MAP, noteToSemitone } from "
 import { randomNote } from "./domain/noteGenerator";
 import { renderNote } from "./ui/renderer";
 import { buildKeyboard, updateKeyboardHint, clearKeyboardHint, updateKbLayoutLabels, highlightKey } from "./ui/keyboard";
-import { synth, toneStart, initMidi } from "./audio/audio";
+import { synth, toneStart, initMidi, setMidiOffset } from "./audio/audio";
 import { initSettings } from "./ui/settings";
 
 // --- State ---
@@ -130,6 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
         onVolumeChange: (value) => { synth.volume.value = value; },
         onOscillatorChange: (type) => { synth.set({ oscillator: { type } }); },
         onKbModeChange: (mode) => { keyboardMode = mode; rebuildKeyboard(); },
+        onMidiOffsetChange: (offset) => { setMidiOffset(offset); },
       });
 
       initMidi({
