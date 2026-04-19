@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "node --import tsx --test src/**/*.test.ts",
-    "build": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm --minify --sourcemap",
-    "watch": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm --sourcemap --watch"
+    "build": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm --minify --sourcemap --legal-comments=linked",
+    "watch": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm --sourcemap --legal-comments=linked --watch"
   },
   "repository": {
     "type": "git",

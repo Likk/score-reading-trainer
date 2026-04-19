@@ -506,6 +506,108 @@ input[type="radio"] {
   }
 }
 
+/* ===== Site Footer ===== */
+.site-footer {
+  width: var(--keyboard-width);
+  padding: var(--space-3) 0;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.site-footer a {
+  color: var(--color-text-tertiary);
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+}
+
+/* ===== Credits Page ===== */
+.credits {
+  width: var(--content-width);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-6);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.credits h1 {
+  margin: 0 0 var(--space-3);
+  font-size: 22px;
+}
+
+.credits h2 {
+  margin: var(--space-6) 0 var(--space-3);
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2);
+}
+
+.credits-intro {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  margin-bottom: var(--space-4);
+}
+
+.credits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.credits-list li {
+  font-size: 13px;
+  line-height: 1.6;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.credits-list li:last-child {
+  border-bottom: none;
+}
+
+.credits-list a {
+  color: var(--color-primary);
+  text-decoration: none;
+  margin-left: var(--space-2);
+  font-size: 12px;
+}
+
+.credits-list a:hover {
+  text-decoration: underline;
+}
+
+.credits-note {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-3);
+}
+
+.credits-note a {
+  color: var(--color-text-secondary);
+}
+
+.credits-back {
+  margin-top: var(--space-8);
+  font-size: 13px;
+}
+
+.credits-back a {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.credits-back a:hover {
+  text-decoration: underline;
+}
+
 /* Landscape mobile: limited height */
 @media (max-width: 960px) and (max-height: 500px) {
   body {
