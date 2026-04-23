@@ -25,7 +25,9 @@
 
 ### 音声
 
-- 4 種の音色 (Triangle, Sawtooth, Square, Sine)
+- 音色選択 (optgroup で分類)
+  - **シンセ:** Triangle / Sawtooth / Square / Sine
+  - **サンプル:** Salamander Grand Piano (CC BY 3.0, Alexander Holm) — 選択時に mp3 サンプルを遅延ロード
 - 音量スライダー (-40dB 〜 0dB)
 - MIDI キーボードでは押している間鳴り続ける (和音対応)
 
@@ -52,6 +54,8 @@ A  S  D  F  G  H  J
 USB 接続の MIDI キーボードに対応 (Web MIDI API)。オクターブを含む正確な判定を行う。
 接続状態は画面下部の MIDI ステータスに表示される。
 
+機種によって中央 C が送信する MIDI ノート番号が異なるため、**オクターブ補正** (-1 / 0 / +1 / +2) を MIDI ステータス横のドロップダウンで設定できる (例: KEYSTATION 61 は +1)。
+
 ### マウス / タッチ
 
 画面上のピアノ鍵盤を直接クリックまたはタップ。オクターブを含む正確な判定。
@@ -61,3 +65,7 @@ USB 接続の MIDI キーボードに対応 (Web MIDI API)。オクターブを�
 - [技術スタック](docs/tech-stack.md)
 - [ビルド・開発](docs/build.md)
 - [アーキテクチャ](docs/architecture.md)
+
+## ライセンス表記
+
+使用ライブラリおよびオーディオサンプルの帰属表示は [credits.html](credits.html) を参照。
