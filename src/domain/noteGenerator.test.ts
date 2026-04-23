@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { midiToNoteInfoForKey, buildMidiPool, randomNote } from "./noteGenerator";
+import { midiToNoteInfoForKey, buildMidiPool, randomNote, randomChord } from "./noteGenerator";
 import { type KeySig, noteToSemitone } from "./music";
 
 // --- midiToNoteInfoForKey ---
@@ -233,5 +233,60 @@ describe("randomNote", () => {
         `note ${note.name} (semitone ${semitone}) not in G major scale`,
       );
     }
+  });
+});
+
+// --- randomChord ---
+
+describe("randomChord", () => {
+  const midiOf = (n: { name: string; octave: number }) =>
+    (n.octave + 1) * 12 + noteToSemitone(n.name);
+
+  it("returns `size` notes", () => {
+    for (const size of [1, 2, 3, 4]) {
+      const chord = randomChord(60, 83, "C", true, size);
+      assert.equal(chord.length, size);
+    }
+  });
+
+  it("notes are distinct by MIDI", () => {
+    for (let i = 0; i < 50; i++) {
+      const chord = randomChord(60, 83, "C", true, 4);
+      const midis = chord.map(midiOf);
+      assert.equal(new Set(midis).size, midis.length);
+    }
+  });
+
+  it("notes are MIDI-ascending", () => {
+    for (let i = 0; i < 50; i++) {
+      const chord = randomChord(60, 83, "C", true, 4);
+      const midis = chord.map(midiOf);
+      for (let j = 1; j < midis.length; j++) {
+        assert.ok(midis[j] > midis[j - 1], `not ascending: ${midis}`);
+      }
+    }
+  });
+
+  it("all notes within range", () => {
+    for (let i = 0; i < 50; i++) {
+      const chord = randomChord(60, 71, "C", false, 3);
+      for (const note of chord) {
+        const midi = midiOf(note);
+        assert.ok(midi >= 60 && midi <= 71, `midi ${midi} out of range`);
+      }
+    }
+  });
+
+  it("returns whole pool when size exceeds pool", () => {
+    // C major, 1 オクターブ → 7 音プール
+    const chord = randomChord(60, 71, "C", false, 10);
+    assert.equal(chord.length, 7);
+  });
+
+  it("falls back to single C4 on empty pool", () => {
+    const chord = randomChord(71, 60, "C", false, 3);
+    assert.equal(chord.length, 1);
+    assert.equal(chord[0].name, "C");
+    assert.equal(chord[0].octave, 4);
   });
 });
