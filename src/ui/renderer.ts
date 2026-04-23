@@ -7,26 +7,29 @@ let cachedEl: HTMLElement | null = null;
 let cachedWidth = 0;
 let cachedHeight = 0;
 
-function makeStaveNote(note: NoteInfo, duration: string, clef: Clef): StaveNote {
-  const midi = (note.octave + 1) * 12 + noteToSemitone(note.name);
-  const ottava = getOttava(midi, clef);
+function midiOf(note: NoteInfo): number {
+  return (note.octave + 1) * 12 + noteToSemitone(note.name);
+}
 
-  let displayVexKey = note.vexKey;
-  if (ottava) {
-    const parts = note.vexKey.split("/");
-    displayVexKey = `${parts[0]}/${note.octave + ottava.shift}`;
-  }
+function makeStaveNote(notes: NoteInfo[], duration: string, clef: Clef): StaveNote {
+  const sorted = [...notes].sort((a, b) => midiOf(a) - midiOf(b));
+  const ottava = getOttava(midiOf(sorted[0]), clef);
 
-  const staveNote = new StaveNote({
-    keys: [displayVexKey],
-    duration,
-    clef,
-    autoStem: true,
+  const keys = sorted.map(n => {
+    if (ottava) {
+      const parts = n.vexKey.split("/");
+      return `${parts[0]}/${n.octave + ottava.shift}`;
+    }
+    return n.vexKey;
   });
 
-  if (note.displayAccidental) {
-    staveNote.addModifier(new Accidental(note.displayAccidental));
-  }
+  const staveNote = new StaveNote({ keys, duration, clef, autoStem: true });
+
+  sorted.forEach((n, i) => {
+    if (n.displayAccidental) {
+      staveNote.addModifier(new Accidental(n.displayAccidental), i);
+    }
+  });
 
   if (ottava) {
     const ann = new Annotation(ottava.label);
@@ -61,7 +64,7 @@ function getOrCreateRenderer(el: HTMLElement, width: number, height: number): Re
   return renderer;
 }
 
-export function renderNote(note: NoteInfo, clef: Clef, keySig: KeySig, pressedMidi?: number): void {
+export function renderNote(notes: NoteInfo[], clef: Clef, keySig: KeySig, pressedMidis?: number[]): void {
   const el = document.querySelector(".score-area") as HTMLElement;
   if (!el) return;
 
@@ -80,14 +83,14 @@ export function renderNote(note: NoteInfo, clef: Clef, keySig: KeySig, pressedMi
   }
   stave.setContext(context).draw();
 
-  const questionNote = makeStaveNote(note, "w", clef);
+  const questionNote = makeStaveNote(notes, "w", clef);
   const voice1 = new Voice({ numBeats: 4, beatValue: 4 });
   voice1.setMode(Voice.Mode.SOFT);
   voice1.addTickables([questionNote]);
 
-  if (pressedMidi !== undefined) {
-    const pressedInfo = midiToNoteInfoForKey(pressedMidi, keySig);
-    const pressedNote = makeStaveNote(pressedInfo, "w", clef);
+  if (pressedMidis && pressedMidis.length > 0) {
+    const pressedInfos = pressedMidis.map(m => midiToNoteInfoForKey(m, keySig));
+    const pressedNote = makeStaveNote(pressedInfos, "w", clef);
     pressedNote.setStyle({ fillStyle: "#4488ff", strokeStyle: "#4488ff" });
 
     const voice2 = new Voice({ numBeats: 4, beatValue: 4 });

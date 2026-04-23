@@ -96,19 +96,22 @@ export function buildKeyboard(options: KeyboardOptions): void {
   area.appendChild(piano);
 }
 
-export function updateKeyboardHint(noteName: string, noteOctave: number): void {
+export function updateKeyboardHint(targets: { name: string; octave: number }[]): void {
   const piano = document.querySelector(".piano");
   if (!piano) return;
 
   piano.querySelectorAll(".hint").forEach(el => el.classList.remove("hint"));
 
-  const targetSemitone = noteToSemitone(noteName);
-  const targetOctave = String(noteOctave);
+  const wanted = targets.map(t => ({
+    semitone: noteToSemitone(t.name),
+    octave: String(t.octave),
+  }));
   const keys = piano.querySelectorAll("[data-note]") as NodeListOf<HTMLElement>;
   for (const key of keys) {
-    if (noteToSemitone(key.dataset.note!) === targetSemitone && key.dataset.octave === targetOctave) {
+    const sem = noteToSemitone(key.dataset.note!);
+    const oct = key.dataset.octave;
+    if (wanted.some(w => w.semitone === sem && w.octave === oct)) {
       key.classList.add("hint");
-      break;
     }
   }
 }
