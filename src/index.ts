@@ -2,7 +2,11 @@ import { type NoteInfo, type Clef, type KeySig, KEY_MAP, noteToSemitone } from "
 import { randomNote } from "./domain/noteGenerator";
 import { renderNote } from "./ui/renderer";
 import { buildKeyboard, updateKeyboardHint, clearKeyboardHint, updateKbLayoutLabels, highlightKey } from "./ui/keyboard";
-import { synth, toneStart, initMidi, setMidiOffset } from "./audio/audio";
+import {
+  toneStart, initMidi, setMidiOffset,
+  triggerAttack, triggerRelease, triggerAttackRelease,
+  setVolume, setSynthOscillator, setVoice, loadPiano,
+} from "./audio/audio";
 import { initSettings } from "./ui/settings";
 
 // --- State ---
@@ -73,7 +77,7 @@ function showFeedback(correct: boolean): void {
 }
 
 function onPianoKeyClick(noteName: string, octave: number): void {
-  synth.triggerAttackRelease(`${noteName}${octave}`, "8n");
+  triggerAttackRelease(`${noteName}${octave}`, "8n");
   highlightKey(noteName, octave);
   if (hintStaffEnabled && currentNote) {
     const pressedMidi = (octave + 1) * 12 + noteToSemitone(noteName);
@@ -89,7 +93,7 @@ document.addEventListener("keydown", (e) => {
   const noteName = KEY_MAP[e.key.toLowerCase()];
   if (noteName) {
     const octave = currentNote?.octave ?? 4;
-    synth.triggerAttackRelease(`${noteName}${octave}`, "8n");
+    triggerAttackRelease(`${noteName}${octave}`, "8n");
     highlightKey(noteName, octave);
     if (hintStaffEnabled && currentNote) {
       const pressedMidi = (octave + 1) * 12 + noteToSemitone(noteName);
@@ -127,15 +131,23 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onHintNoteLabelChange: (enabled) => { hintNoteLabelEnabled = enabled; rebuildKeyboard(); },
         onHintKbLayoutChange: (enabled) => { hintKbLayoutEnabled = enabled; updateKbLayoutLabels(enabled); },
-        onVolumeChange: (value) => { synth.volume.value = value; },
-        onOscillatorChange: (type) => { synth.set({ oscillator: { type } }); },
+        onVolumeChange: (value) => { setVolume(value); },
+        onVoiceChange: async (selection) => {
+          if (selection.kind === "synth") {
+            setSynthOscillator(selection.osc);
+            setVoice("synth");
+          } else {
+            await loadPiano();
+            setVoice("piano");
+          }
+        },
         onKbModeChange: (mode) => { keyboardMode = mode; rebuildKeyboard(); },
         onMidiOffsetChange: (offset) => { setMidiOffset(offset); },
       });
 
       initMidi({
         onNoteOn: (noteName, octave, midi) => {
-          synth.triggerAttack(`${noteName}${octave}`);
+          triggerAttack(`${noteName}${octave}`);
           highlightKey(noteName, octave);
           if (hintStaffEnabled && currentNote) {
             renderNote(currentNote, currentClef, currentKeySig, midi);
@@ -143,7 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
           checkAnswer(noteName, octave);
         },
         onNoteOff: (noteName, octave) => {
-          synth.triggerRelease(`${noteName}${octave}`);
+          triggerRelease(`${noteName}${octave}`);
         },
       });
 

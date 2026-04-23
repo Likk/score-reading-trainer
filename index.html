@@ -67,11 +67,16 @@
             <!-- 音 -->
             <div class="setting-group">
                 <label>音色</label>
-                <select id="oscillatorType">
-                    <option value="triangle">Triangle（柔らか）</option>
-                    <option value="sawtooth">Sawtooth（明るい）</option>
-                    <option value="square">Square（硬い）</option>
-                    <option value="sine">Sine（純音）</option>
+                <select id="voiceSelect">
+                    <optgroup label="ピアノ">
+                        <option value="piano">Salamander Grand Piano</option>
+                    </optgroup>
+                    <optgroup label="電子音">
+                        <option value="triangle" selected>三角波</option>
+                        <option value="sawtooth">ノコギリ波</option>
+                        <option value="square">矩形波</option>
+                        <option value="sine">正弦波</option>
+                    </optgroup>
                 </select>
                 <label>音量</label>
                 <input type="range" id="volume" min="-40" max="0" value="-10">

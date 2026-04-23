@@ -1,6 +1,10 @@
 import type { OscillatorType } from "tone";
 import type { Clef, KeySig } from "../domain/music";
 
+export type VoiceSelection =
+  | { kind: "synth"; osc: OscillatorType }
+  | { kind: "piano" };
+
 export interface SettingsCallbacks {
   onClefChange: (clef: Clef) => void;
   onKeySigChange: (keySig: KeySig) => void;
@@ -11,9 +15,17 @@ export interface SettingsCallbacks {
   onHintNoteLabelChange: (enabled: boolean) => void;
   onHintKbLayoutChange: (enabled: boolean) => void;
   onVolumeChange: (value: number) => void;
-  onOscillatorChange: (type: OscillatorType) => void;
+  onVoiceChange: (selection: VoiceSelection) => Promise<void> | void;
   onKbModeChange: (mode: "fit" | "scroll") => void;
   onMidiOffsetChange: (offset: number) => void;
+}
+
+const SYNTH_OSCS = new Set(["triangle", "sawtooth", "square", "sine"]);
+
+function parseVoiceValue(value: string): VoiceSelection | null {
+  if (value === "piano") return { kind: "piano" };
+  if (SYNTH_OSCS.has(value)) return { kind: "synth", osc: value as OscillatorType };
+  return null;
 }
 
 export function initSettings(callbacks: SettingsCallbacks): void {
@@ -94,10 +106,34 @@ export function initSettings(callbacks: SettingsCallbacks): void {
     });
   }
 
-  const oscSelect = document.getElementById("oscillatorType") as HTMLSelectElement;
-  if (oscSelect) {
-    oscSelect.addEventListener("change", () => {
-      callbacks.onOscillatorChange(oscSelect.value as OscillatorType);
+  const voiceSelect = document.getElementById("voiceSelect") as HTMLSelectElement;
+  if (voiceSelect) {
+    let lastValue = voiceSelect.value;
+    voiceSelect.addEventListener("change", async () => {
+      const selection = parseVoiceValue(voiceSelect.value);
+      if (!selection) {
+        voiceSelect.value = lastValue;
+        return;
+      }
+      const prev = lastValue;
+      lastValue = voiceSelect.value;
+      const originalText = voiceSelect.options[voiceSelect.selectedIndex]?.text ?? "";
+      if (selection.kind === "piano") {
+        voiceSelect.disabled = true;
+        const opt = voiceSelect.options[voiceSelect.selectedIndex];
+        if (opt) opt.text = originalText + "（読込中…）";
+      }
+      try {
+        await callbacks.onVoiceChange(selection);
+      } catch (err) {
+        console.error("voice load failed", err);
+        voiceSelect.value = prev;
+        lastValue = prev;
+      } finally {
+        const opt = voiceSelect.options[voiceSelect.selectedIndex];
+        if (opt && selection.kind === "piano") opt.text = originalText;
+        voiceSelect.disabled = false;
+      }
     });
   }
 

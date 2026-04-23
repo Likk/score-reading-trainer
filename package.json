@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "node --import tsx --test src/**/*.test.ts",
+    "samples": "node scripts/fetch-samples.mjs",
+    "prebuild": "npm run samples",
     "build": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm --minify --sourcemap --legal-comments=linked",
     "watch": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm --sourcemap --legal-comments=linked --watch"
   },
