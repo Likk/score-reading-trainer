@@ -25,6 +25,8 @@ let chordSize = 1;
 let currentNotes: NoteInfo[] | null = null;
 const heldMidis = new Set<number>();
 let lastAnswerTime = 0;
+let chordSettleTimer: ReturnType<typeof setTimeout> | null = null;
+const CHORD_SETTLE_MS = 80;
 
 // --- Game logic ---
 
@@ -47,6 +49,10 @@ function expectedMidis(): number[] {
 function nextQuestion(): void {
   currentNotes = randomChord(rangeLow, rangeHigh, currentKeySig, accidentalsEnabled, chordSize);
   heldMidis.clear();
+  if (chordSettleTimer) {
+    clearTimeout(chordSettleTimer);
+    chordSettleTimer = null;
+  }
   renderNote(currentNotes, currentClef, currentKeySig);
   if (hintKeyEnabled && currentNotes) {
     updateKeyboardHint(currentNotes.map(n => ({ name: n.name, octave: n.octave })));
@@ -57,13 +63,25 @@ function nextQuestion(): void {
 
 function checkChordAnswer(): void {
   if (!currentNotes) return;
-  const now = Date.now();
-  if (now - lastAnswerTime < 50) return;
-  const expected = expectedMidis();
-  if (expected.every(m => heldMidis.has(m))) {
-    lastAnswerTime = now;
-    showFeedback(true);
-  }
+  if (chordSettleTimer) clearTimeout(chordSettleTimer);
+  chordSettleTimer = setTimeout(() => {
+    chordSettleTimer = null;
+    if (!currentNotes) return;
+    const now = Date.now();
+    if (now - lastAnswerTime < 50) return;
+    const expected = expectedMidis();
+    const expectedSet = new Set(expected);
+    const hasExtra = [...heldMidis].some(m => !expectedSet.has(m));
+    if (hasExtra) {
+      lastAnswerTime = now;
+      showFeedback(false);
+      return;
+    }
+    if (heldMidis.size === expected.length && expected.every(m => heldMidis.has(m))) {
+      lastAnswerTime = now;
+      showFeedback(true);
+    }
+  }, CHORD_SETTLE_MS);
 }
 
 function checkSingleAnswer(inputNoteName: string, inputOctave: number): void {
