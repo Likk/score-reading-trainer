@@ -208,6 +208,13 @@ body {
 }
 
 /* ===== Form Elements ===== */
+.setting-group .hint-note {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
 .setting-group select {
   font-size: 13px;
   font-family: var(--font);

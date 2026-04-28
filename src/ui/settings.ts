@@ -18,6 +18,7 @@ export interface SettingsCallbacks {
   onVoiceChange: (selection: VoiceSelection) => Promise<void> | void;
   onKbModeChange: (mode: "fit" | "scroll") => void;
   onMidiOffsetChange: (offset: number) => void;
+  onChordSizeChange: (size: number) => void;
 }
 
 const SYNTH_OSCS = new Set(["triangle", "sawtooth", "square", "sine"]);
@@ -148,6 +149,13 @@ export function initSettings(callbacks: SettingsCallbacks): void {
   if (midiOffsetSelect) {
     midiOffsetSelect.addEventListener("change", () => {
       callbacks.onMidiOffsetChange(parseInt(midiOffsetSelect.value, 10));
+    });
+  }
+
+  const chordSizeSelect = document.getElementById("chordSize") as HTMLSelectElement;
+  if (chordSizeSelect) {
+    chordSizeSelect.addEventListener("change", () => {
+      callbacks.onChordSizeChange(parseInt(chordSizeSelect.value, 10));
     });
   }
 }

@@ -127,3 +127,23 @@ export function randomNote(rangeLow: number, rangeHigh: number, keySig: KeySig, 
   const midi = pool[Math.floor(Math.random() * pool.length)];
   return midiToNoteInfoForKey(midi, keySig);
 }
+
+/**
+ * プールから重複なく `size` 個を抽選し、MIDI 昇順で NoteInfo[] を返す。
+ * プールが `size` に満たない場合はプール全体を返す。空なら C4 単音にフォールバック。
+ */
+export function randomChord(
+  rangeLow: number, rangeHigh: number, keySig: KeySig, accidentalsEnabled: boolean, size: number,
+): NoteInfo[] {
+  const pool = buildMidiPool(rangeLow, rangeHigh, keySig, accidentalsEnabled);
+  if (pool.length === 0) return [fallbackNote()];
+  const n = Math.min(size, pool.length);
+  const picks = new Set<number>();
+  const work = [...pool];
+  for (let i = 0; i < n; i++) {
+    const idx = Math.floor(Math.random() * work.length);
+    picks.add(work[idx]);
+    work.splice(idx, 1);
+  }
+  return [...picks].sort((a, b) => a - b).map(m => midiToNoteInfoForKey(m, keySig));
+}

@@ -1,10 +1,10 @@
 import { type NoteInfo, type Clef, type KeySig, KEY_MAP, noteToSemitone } from "./domain/music";
-import { randomNote } from "./domain/noteGenerator";
+import { randomChord } from "./domain/noteGenerator";
 import { renderNote } from "./ui/renderer";
 import { buildKeyboard, updateKeyboardHint, clearKeyboardHint, updateKbLayoutLabels, highlightKey } from "./ui/keyboard";
 import {
   toneStart, initMidi, setMidiOffset,
-  triggerAttack, triggerRelease, triggerAttackRelease,
+  triggerAttack, triggerRelease,
   setVolume, setSynthOscillator, setVoice, loadPiano,
 } from "./audio/audio";
 import { initSettings } from "./ui/settings";
@@ -21,8 +21,24 @@ let hintStaffEnabled = false;
 let hintKeyEnabled = false;
 let hintKbLayoutEnabled = false;
 let hintNoteLabelEnabled = true;
-let currentNote: NoteInfo | null = null;
+let chordSize = 1;
+let currentNotes: NoteInfo[] | null = null;
+const heldFromMidi  = new Set<number>();
+const heldFromTouch = new Set<number>();
+const heldFromMouse = new Set<number>();
+const heldFromKbd   = new Set<number>();
+const pressedKeys = new Map<string, { toneKey: string; midi: number }>();
 let lastAnswerTime = 0;
+let chordSettleTimer: ReturnType<typeof setTimeout> | null = null;
+const CHORD_SETTLE_MS = 80;
+
+function displayHeld(): Set<number> {
+  return new Set([...heldFromMidi, ...heldFromTouch, ...heldFromMouse, ...heldFromKbd]);
+}
+
+function judgmentHeld(): Set<number> {
+  return new Set([...heldFromMidi, ...heldFromTouch]);
+}
 
 // --- Game logic ---
 
@@ -32,30 +48,69 @@ function rebuildKeyboard(): void {
     rangeHigh,
     keyboardMode,
     hintNoteLabelEnabled,
-    onKeyClick: onPianoKeyClick,
+    onKeyDown: onPianoKeyDown,
+    onKeyUp: onPianoKeyUp,
   });
   updateKbLayoutLabels(hintKbLayoutEnabled);
 }
 
+function expectedMidis(): number[] {
+  if (!currentNotes) return [];
+  return currentNotes.map(n => (n.octave + 1) * 12 + noteToSemitone(n.name));
+}
+
 function nextQuestion(): void {
-  currentNote = randomNote(rangeLow, rangeHigh, currentKeySig, accidentalsEnabled);
-  renderNote(currentNote, currentClef, currentKeySig);
-  if (hintKeyEnabled && currentNote) {
-    updateKeyboardHint(currentNote.name, currentNote.octave);
+  currentNotes = randomChord(rangeLow, rangeHigh, currentKeySig, accidentalsEnabled, chordSize);
+  heldFromMidi.clear();
+  heldFromTouch.clear();
+  heldFromMouse.clear();
+  heldFromKbd.clear();
+  if (chordSettleTimer) {
+    clearTimeout(chordSettleTimer);
+    chordSettleTimer = null;
+  }
+  renderNote(currentNotes, currentClef, currentKeySig);
+  if (hintKeyEnabled && currentNotes) {
+    updateKeyboardHint(currentNotes.map(n => ({ name: n.name, octave: n.octave })));
   } else {
     clearKeyboardHint();
   }
 }
 
-function checkAnswer(inputNoteName: string, inputOctave?: number): void {
-  if (!currentNote) return;
+function checkChordAnswer(): void {
+  if (!currentNotes) return;
+  if (chordSettleTimer) clearTimeout(chordSettleTimer);
+  chordSettleTimer = setTimeout(() => {
+    chordSettleTimer = null;
+    if (!currentNotes) return;
+    const now = Date.now();
+    if (now - lastAnswerTime < 50) return;
+    const expected = expectedMidis();
+    const expectedSet = new Set(expected);
+    const held = judgmentHeld();
+    const hasExtra = [...held].some(m => !expectedSet.has(m));
+    if (hasExtra) {
+      lastAnswerTime = now;
+      showFeedback(false);
+      return;
+    }
+    if (held.size === expected.length && expected.every(m => held.has(m))) {
+      lastAnswerTime = now;
+      showFeedback(true);
+    }
+  }, CHORD_SETTLE_MS);
+}
+
+function checkSingleAnswer(inputNoteName: string, inputOctave: number): void {
+  if (!currentNotes || currentNotes.length !== 1) return;
   const now = Date.now();
   if (now - lastAnswerTime < 50) return;
   lastAnswerTime = now;
-  const expectedSemitone = noteToSemitone(currentNote.name);
+  const target = currentNotes[0];
+  const expectedSemitone = noteToSemitone(target.name);
   const inputSemitone = noteToSemitone(inputNoteName);
   const semitoneMatch = expectedSemitone === inputSemitone && expectedSemitone !== -1;
-  const octaveMatch = inputOctave === undefined || inputOctave === currentNote.octave;
+  const octaveMatch = inputOctave === target.octave;
   showFeedback(semitoneMatch && octaveMatch);
 }
 
@@ -64,7 +119,7 @@ function showFeedback(correct: boolean): void {
   if (!el) return;
 
   if (correct) {
-    currentNote = null;
+    currentNotes = null;
   }
 
   el.style.outlineColor = correct ? "#22c55e" : "#ef4444";
@@ -76,31 +131,70 @@ function showFeedback(correct: boolean): void {
   }, delay);
 }
 
-function onPianoKeyClick(noteName: string, octave: number): void {
-  triggerAttackRelease(`${noteName}${octave}`, "8n");
+function renderHintStaff(): void {
+  if (!hintStaffEnabled || !currentNotes) return;
+  renderNote(currentNotes, currentClef, currentKeySig, [...displayHeld()]);
+}
+
+function onPianoKeyDown(noteName: string, octave: number, pointerType: string): void {
+  const toneKey = `${noteName}${octave}`;
+  const midi = (octave + 1) * 12 + noteToSemitone(noteName);
+  triggerAttack(toneKey);
   highlightKey(noteName, octave);
-  if (hintStaffEnabled && currentNote) {
-    const pressedMidi = (octave + 1) * 12 + noteToSemitone(noteName);
-    renderNote(currentNote, currentClef, currentKeySig, pressedMidi);
+  if (pointerType === "touch") {
+    heldFromTouch.add(midi);
+  } else {
+    heldFromMouse.add(midi);
   }
-  checkAnswer(noteName, octave);
+  renderHintStaff();
+  if (chordSize === 1) {
+    checkSingleAnswer(noteName, octave);
+  } else if (pointerType === "touch") {
+    checkChordAnswer();
+  }
+}
+
+function onPianoKeyUp(noteName: string, octave: number, pointerType: string): void {
+  const toneKey = `${noteName}${octave}`;
+  const midi = (octave + 1) * 12 + noteToSemitone(noteName);
+  triggerRelease(toneKey);
+  if (pointerType === "touch") {
+    heldFromTouch.delete(midi);
+  } else {
+    heldFromMouse.delete(midi);
+  }
+  renderHintStaff();
 }
 
 // --- Input: PC keyboard ---
 
 document.addEventListener("keydown", (e) => {
   if (e.repeat) return;
-  const noteName = KEY_MAP[e.key.toLowerCase()];
-  if (noteName) {
-    const octave = currentNote?.octave ?? 4;
-    triggerAttackRelease(`${noteName}${octave}`, "8n");
-    highlightKey(noteName, octave);
-    if (hintStaffEnabled && currentNote) {
-      const pressedMidi = (octave + 1) * 12 + noteToSemitone(noteName);
-      renderNote(currentNote, currentClef, currentKeySig, pressedMidi);
-    }
-    checkAnswer(noteName, octave);
+  const key = e.key.toLowerCase();
+  const noteName = KEY_MAP[key];
+  if (!noteName) return;
+  if (pressedKeys.has(key)) return;
+  const octave = currentNotes?.[0]?.octave ?? 4;
+  const toneKey = `${noteName}${octave}`;
+  const midi = (octave + 1) * 12 + noteToSemitone(noteName);
+  triggerAttack(toneKey);
+  highlightKey(noteName, octave);
+  heldFromKbd.add(midi);
+  pressedKeys.set(key, { toneKey, midi });
+  renderHintStaff();
+  if (chordSize === 1) {
+    checkSingleAnswer(noteName, octave);
   }
+});
+
+document.addEventListener("keyup", (e) => {
+  const key = e.key.toLowerCase();
+  const info = pressedKeys.get(key);
+  if (!info) return;
+  triggerRelease(info.toneKey);
+  heldFromKbd.delete(info.midi);
+  pressedKeys.delete(key);
+  renderHintStaff();
 });
 
 // --- Init ---
@@ -123,8 +217,8 @@ document.addEventListener("DOMContentLoaded", () => {
         onHintStaffChange: (enabled) => { hintStaffEnabled = enabled; },
         onHintKeyChange: (enabled) => {
           hintKeyEnabled = enabled;
-          if (hintKeyEnabled && currentNote) {
-            updateKeyboardHint(currentNote.name, currentNote.octave);
+          if (hintKeyEnabled && currentNotes) {
+            updateKeyboardHint(currentNotes.map(n => ({ name: n.name, octave: n.octave })));
           } else {
             clearKeyboardHint();
           }
@@ -143,19 +237,26 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onKbModeChange: (mode) => { keyboardMode = mode; rebuildKeyboard(); },
         onMidiOffsetChange: (offset) => { setMidiOffset(offset); },
+        onChordSizeChange: (size) => { chordSize = size; nextQuestion(); },
       });
 
       initMidi({
         onNoteOn: (noteName, octave, midi) => {
           triggerAttack(`${noteName}${octave}`);
           highlightKey(noteName, octave);
-          if (hintStaffEnabled && currentNote) {
-            renderNote(currentNote, currentClef, currentKeySig, midi);
+          heldFromMidi.add(midi);
+          renderHintStaff();
+          if (chordSize === 1) {
+            checkSingleAnswer(noteName, octave);
+          } else {
+            checkChordAnswer();
           }
-          checkAnswer(noteName, octave);
         },
         onNoteOff: (noteName, octave) => {
           triggerRelease(`${noteName}${octave}`);
+          const midi = (octave + 1) * 12 + noteToSemitone(noteName);
+          heldFromMidi.delete(midi);
+          renderHintStaff();
         },
       });
 

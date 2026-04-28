@@ -5,7 +5,32 @@ export interface KeyboardOptions {
   rangeHigh: number;
   keyboardMode: "fit" | "scroll";
   hintNoteLabelEnabled: boolean;
-  onKeyClick: (noteName: string, octave: number) => void;
+  onKeyDown: (noteName: string, octave: number, pointerType: string) => void;
+  onKeyUp: (noteName: string, octave: number, pointerType: string) => void;
+}
+
+type PointerPress = {
+  name: string;
+  octave: number;
+  pointerType: string;
+  el: HTMLElement;
+  onKeyUp: KeyboardOptions["onKeyUp"];
+};
+
+const activePointers = new Map<number, PointerPress>();
+
+let pointerDocumentInstalled = false;
+function ensurePointerDocumentListeners(): void {
+  if (pointerDocumentInstalled) return;
+  pointerDocumentInstalled = true;
+  const release = (e: PointerEvent) => {
+    const p = activePointers.get(e.pointerId);
+    if (!p) return;
+    activePointers.delete(e.pointerId);
+    p.onKeyUp(p.name, p.octave, p.pointerType);
+  };
+  document.addEventListener("pointerup", release);
+  document.addEventListener("pointercancel", release);
 }
 
 function countWhiteKeys(rangeLow: number, rangeHigh: number): number {
@@ -17,13 +42,16 @@ function countWhiteKeys(rangeLow: number, rangeHigh: number): number {
 }
 
 export function buildKeyboard(options: KeyboardOptions): void {
-  const { rangeLow, rangeHigh, keyboardMode, hintNoteLabelEnabled, onKeyClick } = options;
+  const { rangeLow, rangeHigh, keyboardMode, hintNoteLabelEnabled, onKeyDown, onKeyUp } = options;
   const area = document.querySelector(".keyboard-area") as HTMLElement;
   if (!area) return;
   area.innerHTML = "";
 
+  ensurePointerDocumentListeners();
+
   const piano = document.createElement("div");
   piano.className = "piano";
+  piano.style.touchAction = "none";
 
   const whiteKeyCount = countWhiteKeys(rangeLow, rangeHigh);
 
@@ -89,26 +117,46 @@ export function buildKeyboard(options: KeyboardOptions): void {
       whiteKeyIndex++;
     }
 
-    el.addEventListener("mousedown", () => onKeyClick(keyDef.name, octave));
+    el.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (activePointers.has(e.pointerId)) return;
+      activePointers.set(e.pointerId, {
+        name: keyDef.name,
+        octave,
+        pointerType: e.pointerType,
+        el,
+        onKeyUp,
+      });
+      onKeyDown(keyDef.name, octave, e.pointerType);
+    });
+    el.addEventListener("pointerleave", (e) => {
+      const p = activePointers.get(e.pointerId);
+      if (!p || p.el !== el) return;
+      activePointers.delete(e.pointerId);
+      p.onKeyUp(p.name, p.octave, p.pointerType);
+    });
     piano.appendChild(el);
   }
 
   area.appendChild(piano);
 }
 
-export function updateKeyboardHint(noteName: string, noteOctave: number): void {
+export function updateKeyboardHint(targets: { name: string; octave: number }[]): void {
   const piano = document.querySelector(".piano");
   if (!piano) return;
 
   piano.querySelectorAll(".hint").forEach(el => el.classList.remove("hint"));
 
-  const targetSemitone = noteToSemitone(noteName);
-  const targetOctave = String(noteOctave);
+  const wanted = targets.map(t => ({
+    semitone: noteToSemitone(t.name),
+    octave: String(t.octave),
+  }));
   const keys = piano.querySelectorAll("[data-note]") as NodeListOf<HTMLElement>;
   for (const key of keys) {
-    if (noteToSemitone(key.dataset.note!) === targetSemitone && key.dataset.octave === targetOctave) {
+    const sem = noteToSemitone(key.dataset.note!);
+    const oct = key.dataset.octave;
+    if (wanted.some(w => w.semitone === sem && w.octave === oct)) {
       key.classList.add("hint");
-      break;
     }
   }
 }
