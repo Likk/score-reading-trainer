@@ -4,7 +4,7 @@ import { renderNote } from "./ui/renderer";
 import { buildKeyboard, updateKeyboardHint, clearKeyboardHint, updateKbLayoutLabels, highlightKey } from "./ui/keyboard";
 import {
   toneStart, initMidi, setMidiOffset,
-  triggerAttack, triggerRelease, triggerAttackRelease,
+  triggerAttack, triggerRelease,
   setVolume, setSynthOscillator, setVoice, loadPiano,
 } from "./audio/audio";
 import { initSettings } from "./ui/settings";
@@ -23,10 +23,22 @@ let hintKbLayoutEnabled = false;
 let hintNoteLabelEnabled = true;
 let chordSize = 1;
 let currentNotes: NoteInfo[] | null = null;
-const heldMidis = new Set<number>();
+const heldFromMidi  = new Set<number>();
+const heldFromTouch = new Set<number>();
+const heldFromMouse = new Set<number>();
+const heldFromKbd   = new Set<number>();
+const pressedKeys = new Map<string, { toneKey: string; midi: number }>();
 let lastAnswerTime = 0;
 let chordSettleTimer: ReturnType<typeof setTimeout> | null = null;
 const CHORD_SETTLE_MS = 80;
+
+function displayHeld(): Set<number> {
+  return new Set([...heldFromMidi, ...heldFromTouch, ...heldFromMouse, ...heldFromKbd]);
+}
+
+function judgmentHeld(): Set<number> {
+  return new Set([...heldFromMidi, ...heldFromTouch]);
+}
 
 // --- Game logic ---
 
@@ -36,7 +48,8 @@ function rebuildKeyboard(): void {
     rangeHigh,
     keyboardMode,
     hintNoteLabelEnabled,
-    onKeyClick: onPianoKeyClick,
+    onKeyDown: onPianoKeyDown,
+    onKeyUp: onPianoKeyUp,
   });
   updateKbLayoutLabels(hintKbLayoutEnabled);
 }
@@ -48,7 +61,10 @@ function expectedMidis(): number[] {
 
 function nextQuestion(): void {
   currentNotes = randomChord(rangeLow, rangeHigh, currentKeySig, accidentalsEnabled, chordSize);
-  heldMidis.clear();
+  heldFromMidi.clear();
+  heldFromTouch.clear();
+  heldFromMouse.clear();
+  heldFromKbd.clear();
   if (chordSettleTimer) {
     clearTimeout(chordSettleTimer);
     chordSettleTimer = null;
@@ -71,13 +87,14 @@ function checkChordAnswer(): void {
     if (now - lastAnswerTime < 50) return;
     const expected = expectedMidis();
     const expectedSet = new Set(expected);
-    const hasExtra = [...heldMidis].some(m => !expectedSet.has(m));
+    const held = judgmentHeld();
+    const hasExtra = [...held].some(m => !expectedSet.has(m));
     if (hasExtra) {
       lastAnswerTime = now;
       showFeedback(false);
       return;
     }
-    if (heldMidis.size === expected.length && expected.every(m => heldMidis.has(m))) {
+    if (held.size === expected.length && expected.every(m => held.has(m))) {
       lastAnswerTime = now;
       showFeedback(true);
     }
@@ -116,38 +133,68 @@ function showFeedback(correct: boolean): void {
 
 function renderHintStaff(): void {
   if (!hintStaffEnabled || !currentNotes) return;
-  renderNote(currentNotes, currentClef, currentKeySig, [...heldMidis]);
+  renderNote(currentNotes, currentClef, currentKeySig, [...displayHeld()]);
 }
 
-function onPianoKeyClick(noteName: string, octave: number): void {
-  triggerAttackRelease(`${noteName}${octave}`, "8n");
+function onPianoKeyDown(noteName: string, octave: number, pointerType: string): void {
+  const toneKey = `${noteName}${octave}`;
+  const midi = (octave + 1) * 12 + noteToSemitone(noteName);
+  triggerAttack(toneKey);
   highlightKey(noteName, octave);
-  if (hintStaffEnabled && currentNotes) {
-    const pressedMidi = (octave + 1) * 12 + noteToSemitone(noteName);
-    renderNote(currentNotes, currentClef, currentKeySig, [pressedMidi]);
+  if (pointerType === "touch") {
+    heldFromTouch.add(midi);
+  } else {
+    heldFromMouse.add(midi);
   }
+  renderHintStaff();
   if (chordSize === 1) {
     checkSingleAnswer(noteName, octave);
+  } else if (pointerType === "touch") {
+    checkChordAnswer();
   }
+}
+
+function onPianoKeyUp(noteName: string, octave: number, pointerType: string): void {
+  const toneKey = `${noteName}${octave}`;
+  const midi = (octave + 1) * 12 + noteToSemitone(noteName);
+  triggerRelease(toneKey);
+  if (pointerType === "touch") {
+    heldFromTouch.delete(midi);
+  } else {
+    heldFromMouse.delete(midi);
+  }
+  renderHintStaff();
 }
 
 // --- Input: PC keyboard ---
 
 document.addEventListener("keydown", (e) => {
   if (e.repeat) return;
-  const noteName = KEY_MAP[e.key.toLowerCase()];
-  if (noteName) {
-    const octave = currentNotes?.[0]?.octave ?? 4;
-    triggerAttackRelease(`${noteName}${octave}`, "8n");
-    highlightKey(noteName, octave);
-    if (hintStaffEnabled && currentNotes) {
-      const pressedMidi = (octave + 1) * 12 + noteToSemitone(noteName);
-      renderNote(currentNotes, currentClef, currentKeySig, [pressedMidi]);
-    }
-    if (chordSize === 1) {
-      checkSingleAnswer(noteName, octave);
-    }
+  const key = e.key.toLowerCase();
+  const noteName = KEY_MAP[key];
+  if (!noteName) return;
+  if (pressedKeys.has(key)) return;
+  const octave = currentNotes?.[0]?.octave ?? 4;
+  const toneKey = `${noteName}${octave}`;
+  const midi = (octave + 1) * 12 + noteToSemitone(noteName);
+  triggerAttack(toneKey);
+  highlightKey(noteName, octave);
+  heldFromKbd.add(midi);
+  pressedKeys.set(key, { toneKey, midi });
+  renderHintStaff();
+  if (chordSize === 1) {
+    checkSingleAnswer(noteName, octave);
   }
+});
+
+document.addEventListener("keyup", (e) => {
+  const key = e.key.toLowerCase();
+  const info = pressedKeys.get(key);
+  if (!info) return;
+  triggerRelease(info.toneKey);
+  heldFromKbd.delete(info.midi);
+  pressedKeys.delete(key);
+  renderHintStaff();
 });
 
 // --- Init ---
@@ -197,7 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
         onNoteOn: (noteName, octave, midi) => {
           triggerAttack(`${noteName}${octave}`);
           highlightKey(noteName, octave);
-          heldMidis.add(midi);
+          heldFromMidi.add(midi);
           renderHintStaff();
           if (chordSize === 1) {
             checkSingleAnswer(noteName, octave);
@@ -208,7 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
         onNoteOff: (noteName, octave) => {
           triggerRelease(`${noteName}${octave}`);
           const midi = (octave + 1) * 12 + noteToSemitone(noteName);
-          heldMidis.delete(midi);
+          heldFromMidi.delete(midi);
           renderHintStaff();
         },
       });
