@@ -1,16 +1,29 @@
+/**
+ * @file 出題ロジック (MIDI プール構築 + ランダム選択 + 調号に基づく表記変換)
+ *
+ * 役割:
+ * - 指定音域・調号・臨時記号設定から出題候補の MIDI プールを作る
+ * - プールからランダムに 1 音 / N 音和音を抽選
+ * - 抽選した MIDI 番号を調号に応じた NoteInfo (vexKey/toneKey/displayAccidental) に変換
+ *
+ * 設計上の前提:
+ * - ブラウザ API に非依存. 純粋関数のみで構成
+ * - 表記変換は調号と整合する音名を優先する (例: G の F# はナチュラルではなく F#)
+ */
+
 import {
   type NoteInfo, type KeySig, NOTE_NAMES, KEY_SIG_MAP, LETTER_SEMITONES, SEMITONE_NAMES,
   noteToSemitone, semitoneToToneName, getScaleNotes, buildVexKey,
 } from "./music";
 
-/** 半音番号がスケール内にあれば、その調号での音名を返す。スケール外なら null。 */
+/** 半音番号がスケール内にあれば、その調号での音名を返す。スケール外なら null. */
 function scaleNameForSemitone(semitone: number, keySig: KeySig): string | null {
   const scaleNotes = getScaleNotes(keySig);
   return scaleNotes.find(n => noteToSemitone(n) === semitone) ?? null;
 }
 
 /**
- * MIDI 番号を調号に基づく NoteInfo に変換する。
+ * MIDI 番号を調号に基づく NoteInfo に変換する
  *
  * 変換優先順位:
  * 1. スケール音 → そのまま (displayAccidental なし)
@@ -18,7 +31,7 @@ function scaleNameForSemitone(semitone: number, keySig: KeySig): string | null {
  * 3. 調号で b がある音のナチュラル → displayAccidental: "n"
  * 4. ダブルシャープ / ダブルフラット
  * 5. 調号にない音のシャープ
- * 6. フォールバック (SEMITONE_NAMES ベース)
+ * 6. fallback (SEMITONE_NAMES ベース)
  */
 export function midiToNoteInfoForKey(midi: number, keySig: KeySig): NoteInfo {
   const alterations = KEY_SIG_MAP[keySig];
@@ -120,7 +133,7 @@ function fallbackNote(): NoteInfo {
   };
 }
 
-/** プールからランダムに 1 音を選び NoteInfo を返す。プールが空なら C4 にフォールバック。 */
+/** プールからランダムに 1 音を選び NoteInfo を返す。プールが空なら C4 に fallback. */
 export function randomNote(rangeLow: number, rangeHigh: number, keySig: KeySig, accidentalsEnabled: boolean): NoteInfo {
   const pool = buildMidiPool(rangeLow, rangeHigh, keySig, accidentalsEnabled);
   if (pool.length === 0) return fallbackNote();
@@ -130,7 +143,7 @@ export function randomNote(rangeLow: number, rangeHigh: number, keySig: KeySig, 
 
 /**
  * プールから重複なく `size` 個を抽選し、MIDI 昇順で NoteInfo[] を返す。
- * プールが `size` に満たない場合はプール全体を返す。空なら C4 単音にフォールバック。
+ * プールが `size` に満たない場合はプール全体を返す。空なら C4 単音に fallback.
  */
 export function randomChord(
   rangeLow: number, rangeHigh: number, keySig: KeySig, accidentalsEnabled: boolean, size: number,

@@ -1,3 +1,15 @@
+/**
+ * @file 設定 UI のイベント配線
+ *
+ * 役割:
+ * - 設定 DOM (radio / select / checkbox / slider) の change/input を SettingsCallbacks 経由で index.ts へ伝える
+ * - 不正な値 (range の low >= high, 未知の voice 値) は前値へ rollback する
+ * - voice 切替時のロード状態を select の option text で示す ("（読込中…）")
+ *
+ * 設計上の前提:
+ * - DOM 取得は initSettings 1 回のみ。 要素が存在しない設定は黙ってスキップする。(HTML 側で隠す/消すの柔軟性を残したい)
+ */
+
 import type { OscillatorType } from "tone";
 import type { Clef, KeySig } from "../domain/music";
 
@@ -21,14 +33,21 @@ export interface SettingsCallbacks {
   onChordSizeChange: (size: number) => void;
 }
 
+// voice select の synth 系オプションの値 (Tone.js の OscillatorType サブセット)
 const SYNTH_OSCS = new Set(["triangle", "sawtooth", "square", "sine"]);
 
+// voice select の値を VoiceSelection に解釈する。 未知の値は null.
 function parseVoiceValue(value: string): VoiceSelection | null {
   if (value === "piano") return { kind: "piano" };
   if (SYNTH_OSCS.has(value)) return { kind: "synth", osc: value as OscillatorType };
   return null;
 }
 
+/**
+ * 設定 UI のイベントハンドラを一括で配線する
+ *
+ * 各設定項目は対応する DOM 要素が存在する場合のみ処理される (HTML 側で要素が無くてもエラーにならない)
+ */
 export function initSettings(callbacks: SettingsCallbacks): void {
   const clefRadios = document.querySelectorAll('input[name="clef"]');
   for (const radio of clefRadios) {
@@ -44,6 +63,8 @@ export function initSettings(callbacks: SettingsCallbacks): void {
     });
   }
 
+  // 音域 (low/high) の妥当性チェック付き反映
+  // low >= high になる選択は無効として lastLow/lastHigh の値で UI を rollback する
   const rangeLowSelect = document.getElementById("rangeLow") as HTMLSelectElement;
   const rangeHighSelect = document.getElementById("rangeHigh") as HTMLSelectElement;
   if (rangeLowSelect && rangeHighSelect) {
@@ -107,6 +128,8 @@ export function initSettings(callbacks: SettingsCallbacks): void {
     });
   }
 
+  // 音色切替: piano 選択時はサンプル load を待つ間 UI を無効化し、選択中 option の text に "（読込中…）" を一時的に追記する。
+  // 失敗時は prev (前回値) へロールバックする。
   const voiceSelect = document.getElementById("voiceSelect") as HTMLSelectElement;
   if (voiceSelect) {
     let lastValue = voiceSelect.value;
