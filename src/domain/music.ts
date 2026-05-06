@@ -1,3 +1,15 @@
+/**
+ * @file 音楽理論の純粋ロジック (型・定数・変換関数)
+ *
+ * 役割:
+ * - 音名/MIDI/半音/VexFlow キー/Tone.js キーの相互変換
+ * - 調号・スケール・オッターヴァ等の音楽理論定数
+ *
+ * 設計上の前提:
+ * - ブラウザ API に依存しない (テスト容易性のため)
+ * - 出題・描画・再生の各モジュールで共有される基礎ユーティリティ
+ */
+
 // --- Types ---
 
 /** 1 つの音符に関する情報。出題・描画・再生の各モジュールで共有する。 */
@@ -10,7 +22,7 @@ export interface NoteInfo {
   vexKey: string;
   /** Tone.js 再生用キー ("F#4", "Bb4" 等) */
   toneKey: string;
-  /** 五線譜に表示する臨時記号。"#", "b", "n", "##", "bb" のいずれか。不要なら undefined */
+  /** 五線譜に表示する臨時記号。"#", "b", "n", "##", "bb" のいずれか。不要なら undefined. */
   displayAccidental?: string;
 }
 
@@ -61,7 +73,7 @@ export const KEY_MAP: Record<string, string> = {
   u: "A#", j: "B",
 };
 
-/** 音名 → PC キーラベルの逆引き。鍵盤 UI のキーボードレイアウト表示に使用 */
+/** 音名 → PC キーラベルの逆引き。鍵盤 UI のキーボードレイアウト表示に使用。 */
 export const NOTE_TO_KEY: Record<string, string> = {};
 for (const [key, note] of Object.entries(KEY_MAP)) {
   NOTE_TO_KEY[note] = key.toUpperCase();
@@ -87,7 +99,7 @@ export const OCTAVE_KEYS = [
 
 /**
  * 音名を半音番号 (0-11) に変換する。"#" / "b" を任意個数処理する。
- * @returns 半音番号 (0=C, 1=C#, ..., 11=B)。無効な音名なら -1
+ * @returns 半音番号 (0=C, 1=C#, ..., 11=B) 無効な音名なら -1
  * @example noteToSemitone("F#") // => 6
  * @example noteToSemitone("Bb") // => 10
  */
@@ -126,7 +138,7 @@ export function buildVexKey(letter: string, accidental: string, octave: number):
 }
 
 /**
- * MIDI ノート番号を音名・オクターブに分解する。調号は考慮しない (常にシャープ表記)。
+ * MIDI ノート番号を音名・オクターブに分解する。調号は考慮しない (常にシャープ表記)
  * @example midiToNoteName(60) // => { full: "C4", noteName: "C", octave: 4 }
  */
 export function midiToNoteName(midi: number): { full: string; noteName: string; octave: number } {
@@ -141,7 +153,7 @@ export function midiToNoteName(midi: number): { full: string; noteName: string; 
 
 /**
  * 加線が多くなる音域に対して 8va / 8vb 情報を返す。
- * 通常の五線譜範囲内なら null。
+ * 通常の五線譜範囲内なら null.
  *
  * 閾値: treble 48-83, bass 36-71 が通常範囲。
  */

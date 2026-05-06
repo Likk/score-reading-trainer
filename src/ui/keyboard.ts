@@ -1,3 +1,18 @@
+/**
+ * @file 画面下部のピアノ鍵盤 (DOM) の生成と操作
+ *
+ * 役割:
+ * - 設定音域に応じた鍵盤 DOM を生成 (buildKeyboard)
+ * - pointer events でタッチ/マウス入力を統合的に扱う
+ * - ヒント表示 (押した音を譜面に表示, 正解キーを表示, 音名表示, キーボードレイアウト表示)
+ *
+ * 設計上の前提:
+ * - pointerup/pointercancel は document レベルで監視する
+ *   element からドラッグで指/カーソルが外れた場合の取りこぼしを防ぐため
+ * - pointerleave も併用して鍵盤外への移動で離鍵扱いとする
+ * - 鍵盤サイズは fit (画面幅収まる) / scroll (固定幅) の 2 モード
+ */
+
 import { noteToSemitone, NOTE_TO_KEY, OCTAVE_KEYS } from "../domain/music";
 
 export interface KeyboardOptions {
@@ -17,9 +32,15 @@ type PointerPress = {
   onKeyUp: KeyboardOptions["onKeyUp"];
 };
 
+// 押下中の pointer を pointerId で追跡する。
+// 同時にマルチタッチを扱うため Map. pointerup/leave/cancel で削除する。
 const activePointers = new Map<number, PointerPress>();
 
 let pointerDocumentInstalled = false;
+
+// document レベルの pointerup/pointercancel を 1 度だけ install する。
+// 鍵盤外でのリリース (要素外にドラッグした後で指を離す等) を確実に拾うため、
+// buildKeyboard が呼ばれる度に install されないよう pointerDocumentInstalled でガードする。
 function ensurePointerDocumentListeners(): void {
   if (pointerDocumentInstalled) return;
   pointerDocumentInstalled = true;
@@ -33,6 +54,7 @@ function ensurePointerDocumentListeners(): void {
   document.addEventListener("pointercancel", release);
 }
 
+// 指定 MIDI 範囲内の白鍵数を数える (fit モードの鍵盤幅算出に使う)
 function countWhiteKeys(rangeLow: number, rangeHigh: number): number {
   let count = 0;
   for (let midi = rangeLow; midi <= rangeHigh; midi++) {
@@ -41,6 +63,17 @@ function countWhiteKeys(rangeLow: number, rangeHigh: number): number {
   return count;
 }
 
+/**
+ * 鍵盤 DOM を構築して `.keyboard-area` に差し込む
+ *
+ * 音域変更/モード切替/音名表示切替時に呼ばれる既存の鍵盤 DOM はクリアして作り直す。
+ * 各鍵に pointerdown/pointerleave を bind し、 document レベルでも pointerup/cancel を監視する
+ *
+ * 鍵盤サイズ計算:
+ * - "fit"   : area の幅に収まるよう白鍵幅を逆算 (最小 12px, 最大 44px)
+ * - "scroll": 白鍵 44px 固定で水平スクロール
+ * - 高さは画面が低い場合 (innerHeight <= 500) に圧縮する
+ */
 export function buildKeyboard(options: KeyboardOptions): void {
   const { rangeLow, rangeHigh, keyboardMode, hintNoteLabelEnabled, onKeyDown, onKeyUp } = options;
   const area = document.querySelector(".keyboard-area") as HTMLElement;
@@ -51,10 +84,12 @@ export function buildKeyboard(options: KeyboardOptions): void {
 
   const piano = document.createElement("div");
   piano.className = "piano";
+  // touchAction: none でブラウザのスクロール/ズームジェスチャを抑止し pointer events に専念
   piano.style.touchAction = "none";
 
   const whiteKeyCount = countWhiteKeys(rangeLow, rangeHigh);
 
+  // ww: 白鍵幅, bw: 黒鍵幅, wh/bh: 高さ, fontSize/blackFontSize: 音名表示用
   let ww: number;
   let bw: number;
   let wh: number;
@@ -111,6 +146,7 @@ export function buildKeyboard(options: KeyboardOptions): void {
       el.style.width = `${ww}px`;
       el.style.height = `${wh}px`;
       el.style.fontSize = `${fontSize}px`;
+      // 音名表示ヒント: 白鍵に C4, D4 等のラベルを置く。鍵盤幅が狭すぎる時は省略。
       if (hintNoteLabelEnabled && ww >= 20) {
         el.textContent = `${keyDef.name}${octave}`;
       }
@@ -129,6 +165,7 @@ export function buildKeyboard(options: KeyboardOptions): void {
       });
       onKeyDown(keyDef.name, octave, e.pointerType);
     });
+    // pointerleave: 押下中の pointer が鍵盤要素から外に出た時点で離鍵扱いにする(タッチで鍵盤をなぞるとずるずる音が残るのを防ぐ)
     el.addEventListener("pointerleave", (e) => {
       const p = activePointers.get(e.pointerId);
       if (!p || p.el !== el) return;
@@ -141,6 +178,10 @@ export function buildKeyboard(options: KeyboardOptions): void {
   area.appendChild(piano);
 }
 
+/**
+ * 正解キーを表示ヒント: 正解の鍵盤に `.hint` クラスを付ける。
+ * 既存のヒントは一度全て解除してから付け直す (前問の残留を防ぐ)
+ */
 export function updateKeyboardHint(targets: { name: string; octave: number }[]): void {
   const piano = document.querySelector(".piano");
   if (!piano) return;
@@ -161,12 +202,19 @@ export function updateKeyboardHint(targets: { name: string; octave: number }[]):
   }
 }
 
+// 正解キーを表示のクリア (機能 OFF 切替や次問遷移時に呼ぶ)
 export function clearKeyboardHint(): void {
   const piano = document.querySelector(".piano");
   if (!piano) return;
   piano.querySelectorAll(".hint").forEach(el => el.classList.remove("hint"));
 }
 
+/**
+ * キーボードレイアウト表示ヒント: 鍵盤上に対応する PC キー名 (A, W, S 等) を重ね表示する
+ *
+ * `enabled` が false なら既存ラベルを削除して終了
+ * 黒鍵は `position: absolute` で配置するため, ラベル span 追加時に position を調整する
+ */
 export function updateKbLayoutLabels(enabled: boolean): void {
   const piano = document.querySelector(".piano");
   if (!piano) return;
@@ -189,8 +237,14 @@ export function updateKbLayoutLabels(enabled: boolean): void {
   }
 }
 
+// 入力ハイライト解除用のタイマーを鍵盤要素ごとに保持。
+// 連打時に旧タイマーを clearTimeout して新しい 200ms 表示に置き換える。
 const highlightTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
 
+/**
+ * 入力された鍵盤を短時間 (200ms) ハイライトして入力を可視化する
+ * (`.active` クラスの付与/解除で実現) MIDI/タッチ/マウス/PC キー全ソースから呼ばれる
+ */
 export function highlightKey(noteName: string, octave: number): void {
   const piano = document.querySelector(".piano");
   if (!piano) return;
