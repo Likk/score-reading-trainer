@@ -99,7 +99,7 @@ export const OCTAVE_KEYS = [
 
 /**
  * 音名を半音番号 (0-11) に変換する。"#" / "b" を任意個数処理する。
- * @returns 半音番号 (0=C, 1=C#, ..., 11=B) 無効な音名なら -1
+ * @returns 半音番号 (0=C, 1=C#, ..., 11=B). 無効な音名なら -1
  * @example noteToSemitone("F#") // => 6
  * @example noteToSemitone("Bb") // => 10
  */

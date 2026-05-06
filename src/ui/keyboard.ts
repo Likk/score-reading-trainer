@@ -66,7 +66,7 @@ function countWhiteKeys(rangeLow: number, rangeHigh: number): number {
 /**
  * 鍵盤 DOM を構築して `.keyboard-area` に差し込む
  *
- * 音域変更/モード切替/音名表示切替時に呼ばれる既存の鍵盤 DOM はクリアして作り直す。
+ * 音域変更/モード切替/音名表示切替時に呼ばれる。既存の鍵盤 DOM はクリアして作り直す。
  * 各鍵に pointerdown/pointerleave を bind し、 document レベルでも pointerup/cancel を監視する
  *
  * 鍵盤サイズ計算:

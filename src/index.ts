@@ -52,7 +52,8 @@ let currentNotes: NoteInfo[] | null = null;
 
 // 入力ソース別の押下中 MIDI 集合
 // ソース毎に分けるのは:
-// - 押した音を譜面に表示は全ソースを集約 (displayHeld) するが, 和音判定は MIDI/タッチのみ (judgmentHeld) PC キーボード/マウスはオクターブが暗黙の既定値になるため判定対象から外す
+// - 押した音を譜面に表示は全ソースを集約 (displayHeld) するが、
+//   和音判定は MIDI/タッチのみ (judgmentHeld) PC キーボード/マウスはオクターブが暗黙の既定値になるため判定対象から外す
 // - 同じ音を別ソースから押した時、一方を離しても他方が残るよう独立に集合管理
 const heldFromMidi  = new Set<number>();
 const heldFromTouch = new Set<number>();

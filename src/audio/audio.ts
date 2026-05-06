@@ -9,7 +9,7 @@
  * - ピアノ音色は mp3 サンプル群を `loadPiano` で遅延 load する。
  *   ユーザーがピアノを選ぶまで fetch は走らない。
  * - 音色切替時の発音ルーティングは `triggerAttack` 等が `activeVoice` を見て分岐する。
- *   `"piano"` 選択中でもサンプル未 load なら synth にフォールバック。
+ *   `"piano"` 選択中でもサンプル未 load なら synth に fallback.
  */
 
 import { PolySynth, Synth, Sampler, start as toneStart, type OscillatorType } from "tone";
@@ -45,7 +45,7 @@ let pianoLoading: Promise<void> | null = null;
 // (loadPiano の onload 内で s.volume.value = currentVolumeDb する)
 let currentVolumeDb = -10;
 
-// 現在選択中の音源。"piano" でもピアノ未 load なら synth にフォールバック (usePiano 参照)
+// 現在選択中の音源。"piano" でもピアノ未 load なら synth に fallback (usePiano 参照)
 let activeVoice: Voice = "synth";
 
 /**
@@ -210,7 +210,7 @@ export function initMidi(callbacks: MidiCallbacks): void {
     const noteNum = rawNote + midiOffset;
     const name = midiToNoteName(noteNum);
     // ステータスバイト上位 4 bit: 0x9 = Note On, 0x8 = Note Off。下位 4 bit はチャンネル番号。
-    // velocity 0 の Note On は Note Off 扱い (MIDI 1.0 仕様の running status 由来の慣例)
+    // velocity 0 の Note On は Note Off 扱い (MIDI 1.0 仕様の running status の慣習的手法)
     const isNoteOn = status >= 0x90 && status <= 0x9f && velocity > 0;
     const isNoteOff = (status >= 0x80 && status <= 0x8f) ||
                       (status >= 0x90 && status <= 0x9f && velocity === 0);
