@@ -31,7 +31,7 @@ export function loadPiano(): Promise<void> {
   pianoLoading = new Promise<void>((resolve, reject) => {
     const s = new Sampler({
       urls: SALAMANDER_URLS,
-      baseUrl: "public/audio/salamander/",
+      baseUrl: "audio/salamander/",
       release: 1,
       onload: () => {
         s.volume.value = currentVolumeDb;
